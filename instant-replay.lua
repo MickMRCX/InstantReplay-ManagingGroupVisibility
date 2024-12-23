@@ -1,7 +1,7 @@
 obs         = obslua
 source_name = ""
 source_groupe = ""
-total_ms = "10000"
+duration = "10000"
 hotkey_id   = obs.OBS_INVALID_HOTKEY_ID
 clear_hotkey_id = obs.OBS_INVALID_HOTKEY_ID
 attempts    = 0
@@ -47,11 +47,10 @@ function try_play()
 
 		-- get the group item
 		local instantReplayGroup_item = get_item()
-		obs.script_log(obs.LOG_WARNING, "Set visible and start timer")
 		-- set it visible
 		obs.obs_sceneitem_set_visible(instantReplayGroup_item, true)
 		-- start the timer to set it invisible
-		obs.timer_add(disable_source, total_ms)
+		obs.timer_add(disable_source, duration)
 
 		if source ~= nil then
 			local settings = obs.obs_data_create()
@@ -147,6 +146,7 @@ function script_update(settings)
 	source_name = obs.obs_data_get_string(settings, "source")
 	source_groupe = obs.obs_data_get_string(settings,  "source_groupe")
 	interval = obs.obs_data_get_int(settings, "interval")
+	duration = obs.obs_data_get_int(settings, "duration")
 	max_attempts = obs.obs_data_get_int(settings, "max_attempts")
 	vlc_replace = obs.obs_data_get_bool(settings, "vlc_replace")
 end
@@ -195,7 +195,10 @@ function script_properties()
 	end
 	obs.source_list_release(sources)
 	----------------------------------------------
+	-- interval is the delay before starting the replay
 	obs.obs_properties_add_int(props, "interval", "Interval (ms)", 1, 100000, 1)
+	-- duration is the duration in ms of the replay. Make sure it's shorter or equals to the max length of your buffer
+	obs.obs_properties_add_int(props, "duration", "Duration (ms)", 1, 100000, 1)
 	obs.obs_properties_add_int(props, "max_attempts", "Max attempts", 1, 100000, 1)
 	obs.obs_properties_add_bool(props, "vlc_replace", "Replace playlist")
 	return props
@@ -204,6 +207,7 @@ end
 -- A function named script_defaults will be called to set the default settings
 function script_defaults(settings)
 	obs.obs_data_set_default_int(settings, "interval", 1000)
+	obs.obs_data_set_default_int(settings, "duration", 10000)
 	obs.obs_data_set_default_int(settings, "max_attempts", 10)
 end
 
@@ -244,14 +248,12 @@ function get_item()
 end
 
 function enable_source()
-	obs.script_log(obs.LOG_WARNING, "Set visible and stop timer")
 	obs.obs_sceneitem_set_visible(get_item(), true)
 
 	obs.timer_remove(enable_source)
 end
 
 function disable_source()
-	obs.script_log(obs.LOG_INFO, "Set non visible and stop timer")
 	obs.obs_sceneitem_set_visible(get_item(), false)
 
 	obs.timer_remove(disable_source)

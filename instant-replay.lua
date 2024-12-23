@@ -1,5 +1,7 @@
 obs         = obslua
 source_name = ""
+source_groupe = ""
+total_ms = "10000"
 hotkey_id   = obs.OBS_INVALID_HOTKEY_ID
 clear_hotkey_id = obs.OBS_INVALID_HOTKEY_ID
 attempts    = 0
@@ -42,6 +44,15 @@ function try_play()
 	else
 		last_replay = path
 		local source = obs.obs_get_source_by_name(source_name)
+
+		-- get the group item
+		local instantReplayGroup_item = get_item()
+		obs.script_log(obs.LOG_WARNING, "Set visible and start timer")
+		-- set it visible
+		obs.obs_sceneitem_set_visible(instantReplayGroup_item, true)
+		-- start the timer to set it invisible
+		obs.timer_add(disable_source, total_ms)
+
 		if source ~= nil then
 			local settings = obs.obs_data_create()
 			source_id = obs.obs_source_get_id(source)
@@ -134,6 +145,7 @@ end
 -- A function named script_update will be called when settings are changed
 function script_update(settings)
 	source_name = obs.obs_data_get_string(settings, "source")
+	source_groupe = obs.obs_data_get_string(settings,  "source_groupe")
 	interval = obs.obs_data_get_int(settings, "interval")
 	max_attempts = obs.obs_data_get_int(settings, "max_attempts")
 	vlc_replace = obs.obs_data_get_bool(settings, "vlc_replace")
@@ -168,6 +180,21 @@ function script_properties()
 	end
 	obs.source_list_release(sources)
 
+	
+	-------------------------------------------
+	local p = obs.obs_properties_add_list(props, "source_groupe", "Instant Replay Groupe", obs.OBS_COMBO_TYPE_EDITABLE, obs.OBS_COMBO_FORMAT_STRING)
+	local sources = obs.obs_enum_sources()
+	if sources ~= nil then
+		for _, source in ipairs(sources) do
+			source_id = obs.obs_source_get_id(source)
+				local name = obs.obs_source_get_name(source)
+				if name == "InstantReplay-Groupe" then
+					obs.obs_property_list_add_string(p, name, name)
+				end
+		end
+	end
+	obs.source_list_release(sources)
+	----------------------------------------------
 	obs.obs_properties_add_int(props, "interval", "Interval (ms)", 1, 100000, 1)
 	obs.obs_properties_add_int(props, "max_attempts", "Max attempts", 1, 100000, 1)
 	obs.obs_properties_add_bool(props, "vlc_replace", "Replace playlist")
@@ -206,4 +233,26 @@ function script_save(settings)
 	hotkey_save_array = obs.obs_hotkey_save(clear_hotkey_id)
 	obs.obs_data_set_array(settings, "instant_replay.clear_playlist", hotkey_save_array)
 	obs.obs_data_array_release(hotkey_save_array)
+end
+
+function get_item()
+	local source = obs.obs_frontend_get_current_scene()
+	local scene = obs.obs_scene_from_source(source)
+	local item = obs.obs_scene_find_source(scene, source_groupe)
+	obs.obs_source_release(source)
+	return item
+end
+
+function enable_source()
+	obs.script_log(obs.LOG_WARNING, "Set visible and stop timer")
+	obs.obs_sceneitem_set_visible(get_item(), true)
+
+	obs.timer_remove(enable_source)
+end
+
+function disable_source()
+	obs.script_log(obs.LOG_INFO, "Set non visible and stop timer")
+	obs.obs_sceneitem_set_visible(get_item(), false)
+
+	obs.timer_remove(disable_source)
 end
